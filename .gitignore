@@ -1,0 +1,9 @@
+.DS_Store
+
+n8n_data/
+qdrant_data/
+open-webui-data/
+
+downloads/*.pdf
+
+.env
