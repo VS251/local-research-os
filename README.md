@@ -4,8 +4,6 @@ A privacy-first, air-gapped AI system that autonomously monitors ArXiv for new r
 
 ## Architecture
 
-## Architecture
-
 * **The Scout (Autonomous Agent):** Runs daily, queries ArXiv API, uses Llama 3 to score abstracts (1-10) for relevance, and auto-downloads high-value papers.
 * **The Ingestion Engine (ETL Pipeline):** A batch-processing workflow in n8n that splits PDFs, injects "Source Stamps" into every text chunk (to guarantee citation accuracy), and embeds them into Qdrant.
 * **The Brain (RAG Chat):** A local Llama 3.1 instance connected via Open WebUI that performs semantic search with a strict "Cite Sources" system prompt.
