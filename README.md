@@ -5,7 +5,6 @@ A privacy-first, air-gapped AI system that autonomously monitors ArXiv for new r
 ## Architecture
 
 ## 🏗️ Architecture
-
 ```text
 ```mermaid
 graph TD
