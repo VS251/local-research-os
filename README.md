@@ -4,41 +4,7 @@ A privacy-first, air-gapped AI system that autonomously monitors ArXiv for new r
 
 ## Architecture
 
-## 🏗️ Architecture
-```text
-```mermaid
-graph TD
-    subgraph "External World"
-        ArXiv[ArXiv API]
-    end
-
-    subgraph "The Scout (n8n)"
-        Trigger_A[Daily Trigger] -->|Fetch| HTTP_A[HTTP Request]
-        HTTP_A -->|Parse| Llama_Scout[Llama 3 (Analyst)]
-        Llama_Scout -->|Score > 7| Downloader[Download PDF]
-    end
-
-    subgraph "Local File System"
-        Downloader -->|Save| Folder[Downloads Folder]
-    end
-
-    subgraph "Ingestion Engine (n8n)"
-        Folder -->|Watch| Trigger_B[Manual/Schedule Trigger]
-        Trigger_B -->|Read| PDF_Read[Read Binary]
-        PDF_Read -->|Split| Code_Node[JS Code: Split & Stamp]
-        Code_Node -->|Vectorize| Embed_Model[Ollama: Nomic-Embed]
-        Embed_Model -->|Store| Qdrant[(Qdrant DB)]
-    end
-
-    subgraph "The Brain (RAG)"
-        User((User)) -->|Chat| WebUI[Open WebUI]
-        WebUI -->|Query| Qdrant
-        Qdrant -->|Context| Llama_Chat[Llama 3 (Chat)]
-        Llama_Chat -->|Answer| WebUI
-    end
-    
-    ArXiv --> HTTP_A
-```
+## Architecture
 
 * **The Scout (Autonomous Agent):** Runs daily, queries ArXiv API, uses Llama 3 to score abstracts (1-10) for relevance, and auto-downloads high-value papers.
 * **The Ingestion Engine (ETL Pipeline):** A batch-processing workflow in n8n that splits PDFs, injects "Source Stamps" into every text chunk (to guarantee citation accuracy), and embeds them into Qdrant.
