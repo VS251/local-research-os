@@ -6,8 +6,8 @@ A privacy-first, air-gapped AI system that autonomously monitors ArXiv for new r
 
 ## 🏗️ Architecture
 
-```
-mermaid
+```text
+```mermaid
 graph TD
     subgraph "External World"
         ArXiv[ArXiv API]
@@ -39,8 +39,7 @@ graph TD
     end
     
     ArXiv --> HTTP_A
-    
-```
+    ```
 
 * **The Scout (Autonomous Agent):** Runs daily, queries ArXiv API, uses Llama 3 to score abstracts (1-10) for relevance, and auto-downloads high-value papers.
 * **The Ingestion Engine (ETL Pipeline):** A batch-processing workflow in n8n that splits PDFs, injects "Source Stamps" into every text chunk (to guarantee citation accuracy), and embeds them into Qdrant.
