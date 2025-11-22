@@ -1,0 +1,263 @@
+{
+  "name": "Ingestion Pipeline",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -864,
+        -208
+      ],
+      "id": "f6204f2f-86cc-4d66-bea4-445fa17db728",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "fileSelector": "/home/node/downloads/*.pdf",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        -672,
+        -208
+      ],
+      "id": "59d39dde-30e7-408d-a0a0-4ccb00d135e7",
+      "name": "Read/Write Files from Disk"
+    },
+    {
+      "parameters": {
+        "operation": "pdf",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1.1,
+      "position": [
+        -480,
+        -208
+      ],
+      "id": "58c693b3-4e92-43b4-920d-66c83792989b",
+      "name": "Extract from File"
+    },
+    {
+      "parameters": {
+        "mode": "insert",
+        "qdrantCollection": {
+          "__rl": true,
+          "value": "research_papers",
+          "mode": "id"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreQdrant",
+      "typeVersion": 1.3,
+      "position": [
+        80,
+        -208
+      ],
+      "id": "23a44cf5-3320-4197-a567-116fc3f84c40",
+      "name": "Qdrant Vector Store",
+      "credentials": {
+        "qdrantApi": {
+          "id": "KkyfJqSiHxQqyWTg",
+          "name": "QdrantApi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": "llama3.1:latest"
+      },
+      "type": "@n8n/n8n-nodes-langchain.embeddingsOllama",
+      "typeVersion": 1,
+      "position": [
+        -32,
+        -32
+      ],
+      "id": "22e89730-6a89-4e7e-81a1-30b76604a804",
+      "name": "Embeddings Ollama",
+      "credentials": {
+        "ollamaApi": {
+          "id": "dNFcTz8GIF8WvYZQ",
+          "name": "Ollama account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const newItems = [];\n\nconst files = $('Extract from File').all();\nconst analysis = $('HTTP Request').all();\n\nfor (let i = 0; i < files.length; i++) {\n  \n  const fullText = files[i].json.text;\n  \n  const filename = $('Read/Write Files from Disk').all()[i].json.fileName;\n  const aiResponse = analysis[i].json.response;\n  \n  let tags = [\"Uncategorized\"];\n  let difficulty = \"Unknown\";\n  \n  try {\n    const parsed = JSON.parse(aiResponse);\n    tags = parsed.tags || tags;\n    difficulty = parsed.difficulty || difficulty;\n  } catch(e) {}\n\n  const chunks = fullText.match(/[\\s\\S]{1,500}/g) || [];\n\n  chunks.forEach(chunk => {\n    newItems.push({\n      json: {\n        stamped_content: `SOURCE: ${filename} | TAGS: ${tags.join(\", \")} | LEVEL: ${difficulty}\\n----------------\\n${chunk}`,\n        \n        source: filename,\n        tags: tags,\n        difficulty: difficulty\n      }\n    });\n  });\n}\n\nreturn newItems;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -128,
+        -208
+      ],
+      "id": "235133e7-4def-474b-a455-028be9a55f2e",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "options": {
+          "metadata": {
+            "metadataValues": [
+              {
+                "name": "source",
+                "value": "={{ $json.source }}"
+              },
+              {
+                "name": "tags",
+                "value": "={{ $json.tags }}"
+              },
+              {
+                "name": "difficulty",
+                "value": "={{ $json.difficulty }}"
+              }
+            ]
+          }
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.documentDefaultDataLoader",
+      "typeVersion": 1.1,
+      "position": [
+        192,
+        -32
+      ],
+      "id": "ac4d27a4-1e3b-4c8b-9dd5-84a83298514e",
+      "name": "Default Data Loader"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:11434/api/generate",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "llama3.1"
+            },
+            {
+              "name": "format",
+              "value": "json"
+            },
+            {
+              "name": "stream",
+              "value": "={{ false }}"
+            },
+            {
+              "name": "prompt",
+              "value": "=Analyze the following academic text. Return a JSON object with exactly two keys: 1. \"tags\": A list of 3 strings (e.g. [\"Computer Vision\", \"Transformers\", \"Optimization\"]). 2. \"difficulty\": A string (choose one: \"Beginner\", \"Intermediate\", \"Advanced\").  TEXT TO ANALYZE: {{ $json.text.slice(0, 2000) }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -304,
+        -208
+      ],
+      "id": "b562fc12-933f-40df-ad6d-5c4e3d3a5d28",
+      "name": "HTTP Request"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "Read/Write Files from Disk",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read/Write Files from Disk": {
+      "main": [
+        [
+          {
+            "node": "Extract from File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract from File": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embeddings Ollama": {
+      "ai_embedding": [
+        [
+          {
+            "node": "Qdrant Vector Store",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Qdrant Vector Store": {
+      "main": [
+        []
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Qdrant Vector Store",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Default Data Loader": {
+      "ai_document": [
+        [
+          {
+            "node": "Qdrant Vector Store",
+            "type": "ai_document",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "04cc1059-0a28-4ecb-8218-057aa7490aed",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "c5e3f0de7a9cbd50be62bd008c6f7671bc2cddab33b7085b3b411c715b6e5093"
+  },
+  "id": "VoaPPWCGUB8ERlWr",
+  "tags": []
+}
