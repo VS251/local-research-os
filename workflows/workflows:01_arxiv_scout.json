@@ -1,0 +1,284 @@
+{
+  "name": "The Scout",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 8
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -544,
+        -16
+      ],
+      "id": "900d3c1d-9df0-4ce4-bb59-a0ea546e3a16",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "url": "http://export.arxiv.org/api/query?search_query=all:RAG+AND+all:LLM&start=0&max_results=5&sortBy=submittedDate&sortOrder=descending",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -336,
+        -16
+      ],
+      "id": "b6797ec5-069c-4a7f-8f17-c301857d96d9",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.xml",
+      "typeVersion": 1,
+      "position": [
+        -128,
+        -16
+      ],
+      "id": "7e7df4b3-cc2b-4f0d-845e-c748aa33f49e",
+      "name": "XML"
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "feed.entry",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        80,
+        -16
+      ],
+      "id": "18cd5358-a7e7-44b8-be40-335226249223",
+      "name": "Split Out"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "b673fb6d-6715-4a35-9fa5-2d60c635c6bc",
+              "leftValue": "={{ $json.score }}",
+              "rightValue": 7,
+              "operator": {
+                "type": "number",
+                "operation": "gte"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        640,
+        -16
+      ],
+      "id": "f1b1ca06-c86f-4189-8567-2faf986963f2",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.id.replace('/abs/', '/pdf/') }}.pdf",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        848,
+        -112
+      ],
+      "id": "a658b7fa-55c8-4524-9f71-19b1d8536e3d",
+      "name": "HTTP Request1"
+    },
+    {
+      "parameters": {
+        "operation": "write",
+        "fileName": "=/home/node/downloads/{{ $json.title.replace(/[^a-z0-9]/gi, '_') }}.pdf",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        1056,
+        -112
+      ],
+      "id": "e04003c3-d16f-4350-9040-97d45aff426b",
+      "name": "Read/Write Files from Disk"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:11434/api/generate",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "llama3.1"
+            },
+            {
+              "name": "format",
+              "value": "json"
+            },
+            {
+              "name": "stream",
+              "value": "={{false}}"
+            },
+            {
+              "name": "prompt",
+              "value": "=Analyze the abstract. Rate relevance to RAG/LLM from 1-10. Return JSON with 'score' and 'review'. ABSTRACT: {{ $json.summary }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        272,
+        -16
+      ],
+      "id": "e26e97df-6cff-4028-9a93-4fe13773a3bc",
+      "name": "HTTP Request2"
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $input.first().json.response;\n\n\nlet score = 0;\nlet review = \"Review could not be parsed automatically.\";\n\n\nif (typeof response === 'object' && response !== null) {\n  score = response.score || 0;\n  review = response.review || review;\n} \n\nelse if (typeof response === 'string') {\n \n  const clean = response.replace(/```json/g, '').replace(/```/g, '').trim();\n  \n  try {\n    const parsed = JSON.parse(clean);\n    score = parsed.score;\n    review = parsed.review;\n  } catch (e) {\n    const scoreMatch = response.match(/\"score\"\\s*:\\s*(\\d+)/);\n    if (scoreMatch) score = parseInt(scoreMatch[1]);\n    \n    const reviewMatch = response.match(/\"review\"\\s*:\\s*\"([^\"]*)\"/);\n    if (reviewMatch) review = reviewMatch[1];\n  }\n}\n\nreturn {\n  json: {\n    score: score,\n    review: review,\n    id: $('Split Out').item.json.id,\n    title: $('Split Out').item.json.title\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        464,
+        -16
+      ],
+      "id": "482b1e1b-4bff-479e-80b4-465cf30d096e",
+      "name": "Code in JavaScript"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "XML",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "XML": {
+      "main": [
+        [
+          {
+            "node": "Split Out",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Out": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request1": {
+      "main": [
+        [
+          {
+            "node": "Read/Write Files from Disk",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request2": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "c7040318-1bfc-4089-adf0-67923d4510ba",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "c5e3f0de7a9cbd50be62bd008c6f7671bc2cddab33b7085b3b411c715b6e5093"
+  },
+  "id": "kCoBFuBiahjAkt0c",
+  "tags": []
+}
