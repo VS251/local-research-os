@@ -37,3 +37,4 @@ A privacy-first, air-gapped AI system that autonomously monitors ArXiv for new r
 * **Zero Data Ingress:** 100% local. No data is sent to OpenAI or Anthropic.
 * **Source Stamping:** Custom ETL logic injects `SOURCE_FILENAME: {name}` into every vector embedding, solving the "Lost Header" problem in RAG retrieval.
 * **Automatic Curation:** The system filters noise by "reading" abstracts for you before downloading.
+ 
